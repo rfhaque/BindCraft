@@ -219,8 +219,28 @@ else
     immutabledict:immutabledict
     optax:optax
   )
-  missing_modules=()
 
+  get_python_package_spec() {
+    case "$1" in
+      dm-haiku)
+        echo 'dm-haiku<0.0.14'
+        ;;
+      flax)
+        echo 'flax==0.9.0'
+        ;;
+      optax)
+        echo 'optax==0.2.4'
+        ;;
+      chex)
+        echo 'chex==0.1.88'
+        ;;
+      *)
+        echo "$1"
+        ;;
+    esac
+  }
+
+  missing_modules=()
   for item in "${required_python_modules[@]}"; do
     pkg="${item%%:*}"
     module="${item#*:}"
@@ -228,9 +248,34 @@ else
   done
 
   if [ ${#missing_modules[@]} -ne 0 ]; then
-    echo -e "Error: The following Python modules are missing from the existing environment:"
+    echo -e "Installing missing Python modules into the existing environment\n"
+    missing_package_specs=()
+    for pkg in "${missing_modules[@]}"; do
+      missing_package_specs+=("$(get_python_package_spec "$pkg")")
+    done
+    python -m pip install --upgrade "${missing_package_specs[@]}" \
+    || { echo -e "Error: Failed to install missing Python modules into the existing environment."; exit 1; }
+  fi
+
+  missing_modules=()
+  import_failures=()
+  for item in "${required_python_modules[@]}"; do
+    pkg="${item%%:*}"
+    module="${item#*:}"
+    import_error=$(python -c "import ${module}" 2>&1) || {
+      missing_modules+=("$pkg")
+      import_failures+=("$pkg import failed as '${module}': ${import_error}")
+    }
+  done
+
+  if [ ${#missing_modules[@]} -ne 0 ]; then
+    echo -e "Error: The following Python modules are missing or not importable from the existing environment:"
     for pkg in "${missing_modules[@]}"; do
       echo -e " - $pkg"
+    done
+    echo -e "\nImport failures:"
+    for failure in "${import_failures[@]}"; do
+      echo -e " - $failure"
     done
     exit 1
   fi

@@ -44,7 +44,23 @@ pip install transformers@git+https://github.com/Biohub/transformers.git@main
 pip install esm@git+https://github.com/Biohub/esm.git@main
 
 pip install --upgrade 'jax==0.4.35' 'jax-rocm60-plugin==0.4.35' 'jax-rocm60-pjrt==0.4.35'
-pip install pdbfixer seaborn dm-haiku dm-tree ml-collections immutabledict flax==0.9.0 orbax-checkpoint==0.7.0 optax==0.2.4 chex==0.1.88
+pip install pdbfixer seaborn 'dm-haiku<0.0.14' dm-tree ml-collections immutabledict flax==0.9.0 orbax-checkpoint==0.7.0 optax==0.2.4 chex==0.1.88 'jax==0.4.35'
+python - <<'PY'
+modules = (
+    "jax",
+    "jaxlib",
+    "haiku",
+    "tree",
+    "ml_collections",
+    "immutabledict",
+    "flax",
+    "orbax.checkpoint",
+    "optax",
+    "chex",
+)
+for module in modules:
+    __import__(module)
+PY
 
 export LD_LIBRARY_PATH=/collab/usr/global/tools/rccl/toss_4_x86_64_ib_cray/rocm-6.4.3/install/lib:$LD_LIBRARY_PATH
 
