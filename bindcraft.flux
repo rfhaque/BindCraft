@@ -1,4 +1,11 @@
 #!/bin/bash
+# flux: -N 1
+# flux: -x
+# flux: --amd-gpumode=SPX
+# flux: -t 2h
+# flux: -q batch
+# flux: -B my_bank
+
 set -euo pipefail
 
 BINDCRAFT_MODULES=${BINDCRAFT_MODULES:-"StdEnv PrgEnv-amd/8.7.0 cray-mpich-abi/9.0.1 rocm/7.2.1 rccl python/3.12.2"}
@@ -7,13 +14,30 @@ if command -v module >/dev/null 2>&1; then
     module load ${BINDCRAFT_MODULES}
 fi
 
-if [ -n "${BINDCRAFT_ENV_ACTIVATE:-}" ]; then
-    source "${BINDCRAFT_ENV_ACTIVATE}"
-elif [ -n "${BINDCRAFT_PYTHON_ENV:-}" ] && [ -f "${BINDCRAFT_PYTHON_ENV}/bin/activate" ]; then
-    source "${BINDCRAFT_PYTHON_ENV}/bin/activate"
+SETTINGS=""
+FILTERS=""
+ADVANCED=""
+RANKS=""
+PYTHON_ENV=""
+TEMP=$(getopt -o s:f:a:r:p: --long settings:,filters:,advanced:,ranks:,py-env: -n 'bindcraft.flux' -- "$@")
+eval set -- "$TEMP"
+
+while true ; do
+    case "$1" in
+        -s|--settings) SETTINGS="$2" ; shift 2 ;;
+        -f|--filters) FILTERS="$2" ; shift 2 ;;
+        -a|--advanced) ADVANCED="$2" ; shift 2 ;;
+        -r|--ranks) RANKS="$2" ; shift 2 ;;
+        -p|--py-env) PYTHON_ENV="$2" ; shift 2 ;;
+        --) shift ; break ;;
+        *) echo "Invalid Option" ; exit 1 ;;
+    esac
+done
+
+if [ -n "${PYTHON_ENV}" ] && [ -f "${PYTHON_ENV}/bin/activate" ]; then
+    source "${PYTHON_ENV}/bin/activate"
 else
-    echo "Error: set BINDCRAFT_PYTHON_ENV to an existing non-Conda Python environment with bin/activate,"
-    echo "       or set BINDCRAFT_ENV_ACTIVATE to an activation script."
+    echo "Error: pass --py-env with an existing non-Conda Python environment containing bin/activate."
     exit 1
 fi
 
@@ -31,26 +55,10 @@ command -v flux >/dev/null 2>&1 || {
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 cd "${SCRIPT_DIR}"
 
-SETTINGS=""
-FILTERS=""
-ADVANCED=""
-TEMP=$(getopt -o s:f:a: --long settings:,filters:,advanced: -n 'bindcraft.flux' -- "$@")
-eval set -- "$TEMP"
-
-while true ; do
-    case "$1" in
-        -s|--settings) SETTINGS="$2" ; shift 2 ;;
-        -f|--filters) FILTERS="$2" ; shift 2 ;;
-        -a|--advanced) ADVANCED="$2" ; shift 2 ;;
-        --) shift ; break ;;
-        *) echo "Invalid Option" ; exit 1 ;;
-    esac
-done
-
 if [ -z "$SETTINGS" ]; then
     echo "Error: The -s or --settings option is required."
     exit 1
 fi
 
 echo "Running the BindCraft pipeline with Flux"
-flux run -N 1 -n 1 -g 1 python -u "${SCRIPT_DIR}/bindcraft.py" --settings "${SETTINGS}" --filters "${FILTERS}" --advanced "${ADVANCED}"
+flux run -N 1 -n "${RANKS}" -g 1 python -u "${SCRIPT_DIR}/bindcraft.py" --settings "${SETTINGS}" --filters "${FILTERS}" --advanced "${ADVANCED}"

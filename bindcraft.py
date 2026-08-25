@@ -2,23 +2,77 @@
 ###################### BindCraft Run
 ####################################
 ### Import dependencies
+import os
+import sys
+
+from mpi4py import MPI  # type: ignore
+
+
+def _pin_rank_to_gpu(rank: int) -> str:
+    """Restrict this rank to one AMD GPU before importing JAX.
+
+    This Flux launcher uses one node, so the MPI rank matches the local GPU
+    ordinal. Flux gives every task the same ROCR mask, so it cannot be used as
+    a task-specific binding.
+    """
+    selected_device = str(rank)
+
+    # HIP_VISIBLE_DEVICES is evaluated after ROCR_VISIBLE_DEVICES.  Once ROCR
+    # has narrowed the process to one physical GPU, that GPU is logical device
+    # 0 to HIP (even when its physical ordinal is, for example, 1).
+    os.environ["ROCR_VISIBLE_DEVICES"] = selected_device
+    os.environ["HIP_VISIBLE_DEVICES"] = "0"
+    # Flux exports CUDA_VISIBLE_DEVICES too.  ROCm treats it as another mask,
+    # which conflicts with HIP_VISIBLE_DEVICES after the ROCR mask above.
+    os.environ.pop("CUDA_VISIBLE_DEVICES", None)
+    return selected_device
+
+
+comm = MPI.COMM_WORLD
+rank = int(comm.Get_rank())
+size = int(comm.Get_size())
+selected_gpu = _pin_rank_to_gpu(rank)
+
+# Importing functions imports JAX, so this must remain after GPU pinning.
 from functions import *
 
 # Check if JAX-capable GPU is available, otherwise exit
 check_jax_gpu()
+print(f"MPI rank {rank}/{size} is using GPU {selected_gpu}.")
 
 ######################################
 ### parse input paths
 parser = argparse.ArgumentParser(description='Script to run BindCraft binder design.')
 
 parser.add_argument('--settings', '-s', type=str, required=True,
-                    help='Path to the basic settings.json file. Required.')
+                    help='Colon-delimited list of basic settings.json paths (one per rank). Required.')
 parser.add_argument('--filters', '-f', type=str, default='./settings_filters/default_filters.json',
                     help='Path to the filters.json file used to filter design. If not provided, default will be used.')
 parser.add_argument('--advanced', '-a', type=str, default='./settings_advanced/default_4stage_multimer.json',
                     help='Path to the advanced.json file with additional design settings. If not provided, default will be used.')
 
 args = parser.parse_args()
+
+settings_list = args.settings.split(":")
+if any(s == "" for s in settings_list):
+    print('Error: --settings contains an empty entry (check for leading/trailing ":").', file=sys.stderr)
+    sys.exit(1)
+
+if rank < 0:
+    print(f"Error: rank must be >= 0 (got {rank}).", file=sys.stderr)
+    sys.exit(1)
+
+if rank >= len(settings_list):
+    print("Error: rank is out of range for --settings entries.", file=sys.stderr)
+    print(f"       rank={rank} settings_entries={len(settings_list)}", file=sys.stderr)
+    sys.exit(1)
+
+if len(settings_list) != size:
+    print("Error: number of --settings entries must equal the number of ranks.", file=sys.stderr)
+    print(f"       settings_entries={len(settings_list)} ranks={size}", file=sys.stderr)
+    sys.exit(1)
+
+args.settings = settings_list[rank]
 
 # perform checks of input setting files
 settings_path, filters_path, advanced_path = perform_input_check(args)
