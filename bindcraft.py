@@ -202,22 +202,18 @@ while True:
                     # compile complex prediction model
                     complex_prediction_model = mk_afdesign_model(protocol="binder", num_recycles=advanced_settings["num_recycles_validation"], data_dir=advanced_settings["af_params_dir"], 
                                                                 use_multimer=multimer_validation, use_initial_guess=advanced_settings["predict_initial_guess"], use_initial_atom_pos=advanced_settings["predict_bigbang"])
-                    disable_af2_bfloat16(complex_prediction_model)
                     if advanced_settings["predict_initial_guess"] or advanced_settings["predict_bigbang"]:
                         complex_prediction_model.prep_inputs(pdb_filename=trajectory_pdb, chain='A', binder_chain='B', binder_len=length, use_binder_template=True, rm_target_seq=advanced_settings["rm_template_seq_predict"],
                                                             rm_target_sc=advanced_settings["rm_template_sc_predict"], rm_template_ic=True)
                     else:
                         complex_prediction_model.prep_inputs(pdb_filename=target_settings["starting_pdb"], chain=target_settings["chains"], binder_len=length, rm_target_seq=advanced_settings["rm_template_seq_predict"],
                                                             rm_target_sc=advanced_settings["rm_template_sc_predict"])
-                    disable_af2_bfloat16(complex_prediction_model)
 
                     # compile binder monomer prediction model
                     binder_prediction_model = mk_afdesign_model(protocol="hallucination", use_templates=False, initial_guess=False, 
                                                                 use_initial_atom_pos=False, num_recycles=advanced_settings["num_recycles_validation"], 
                                                                 data_dir=advanced_settings["af_params_dir"], use_multimer=multimer_validation)
-                    disable_af2_bfloat16(binder_prediction_model)
                     binder_prediction_model.prep_inputs(length=length)
-                    disable_af2_bfloat16(binder_prediction_model)
 
                     # iterate over designed sequences        
                     for mpnn_sequence in mpnn_sequences:

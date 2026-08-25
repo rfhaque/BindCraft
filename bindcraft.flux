@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-BINDCRAFT_MODULES=${BINDCRAFT_MODULES:-"StdEnv PrgEnv-amd/8.7.0 cray-mpich-abi/9.0.1 rocm/6.4.3 rccl python/3.12.2"}
+BINDCRAFT_MODULES=${BINDCRAFT_MODULES:-"StdEnv PrgEnv-amd/8.7.0 cray-mpich-abi/9.0.1 rocm/7.2.1 rccl python/3.12.2"}
 if command -v module >/dev/null 2>&1; then
     module purge --force
     module load ${BINDCRAFT_MODULES}

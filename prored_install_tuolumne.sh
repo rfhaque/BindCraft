@@ -9,11 +9,11 @@ fi
 export WORKSPACE_ROOT_DIR=$(realpath $1)
 export PRORED_RELEASE=v2.0.0
 export SYSTEM_NAME=tuolumne
-CC=/opt/rocm-6.4.3/bin/amdclang
-CXX=/opt/rocm-6.4.3/bin/amdclang++
+CC=/opt/rocm-7.2.1/bin/amdclang
+CXX=/opt/rocm-7.2.1/bin/amdclang++
 MPICC=/opt/cray/pe/mpich/9.0.1/ofi/crayclang/20.0/bin/mpicc
 MPICXX=/opt/cray/pe/mpich/9.0.1/ofi/crayclang/20.0/bin/mpicxx
-export MODULES="StdEnv cmake/3.29.2 PrgEnv-amd/8.7.0 cray-mpich-abi/9.0.1 rocm/6.4.3 rccl python/3.12.2"
+export MODULES="StdEnv cmake/3.29.2 PrgEnv-amd/8.7.0 cray-mpich-abi/9.0.1 rocm/7.2.1 rccl python/3.12.2"
 module purge --force
 module load $MODULES
 export PROJECT_WORKSPACE_DIR=$WORKSPACE_ROOT_DIR/builds
@@ -34,17 +34,30 @@ rm -rf $PRORED_VENV_DIR
 python3 -m venv $PRORED_VENV_DIR
 pushd $PRORED_VENV_DIR
 source ./bin/activate
+
+# Ensure ROCm runtime libraries are discoverable (needed by jaxlib).
+export ROCM_PATH=/opt/rocm-7.2.1
+export LD_LIBRARY_PATH=$ROCM_PATH/lib:$ROCM_PATH/llvm/lib:/collab/usr/global/tools/rccl/toss_4_x86_64_ib_cray/rocm-7.2.0/install/lib:$LD_LIBRARY_PATH
+
 pip install --upgrade pip
 pip install torch torchvision --index-url https://download.pytorch.org/whl/rocm6.4
 
 pip install mpi4py==4.1.2
 pip install accelerate torchmetrics biopython==1.85
 pip install flux-python maestrowf
-pip install transformers@git+https://github.com/Biohub/transformers.git@main
-pip install esm@git+https://github.com/Biohub/esm.git@main
+#pip install transformers@git+https://github.com/Biohub/transformers.git@main
+#pip install esm@git+https://github.com/Biohub/esm.git@main
 
-pip install --upgrade 'jax==0.4.35' 'jax-rocm60-plugin==0.4.35' 'jax-rocm60-pjrt==0.4.35'
-pip install pdbfixer seaborn 'dm-haiku<0.0.14' dm-tree ml-collections immutabledict flax==0.9.0 orbax-checkpoint==0.7.0 optax==0.2.4 chex==0.1.88 'jax==0.4.35'
+#pip install --upgrade 'jax==0.4.35' 'jax-rocm60-plugin==0.4.35' 'jax-rocm60-pjrt==0.4.35'
+#pip install pdbfixer seaborn 'dm-haiku<0.0.14' dm-tree ml-collections immutabledict flax==0.9.0 orbax-checkpoint==0.7.0 optax==0.2.4 chex==0.1.88 'jax==0.4.35'
+
+pip install https://github.com/ROCm/jax/releases/download/rocm-jax-v0.7.1/jaxlib-0.7.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+pip install https://github.com/ROCm/jax/releases/download/rocm-jax-v0.7.1/jax_rocm7_pjrt-0.7.1-py3-none-manylinux_2_28_x86_64.whl  https://github.com/ROCm/jax/releases/download/rocm-jax-v0.7.1/jax_rocm7_plugin-0.7.1-cp312-cp312-manylinux_2_28_x86_64.whl
+pip install --no-deps 'jax==0.7.1'
+pip install pdbfixer seaborn 'flax==0.11.0' dm-haiku dm-tree ml-collections immutabledict 'orbax-checkpoint==0.12.4' 'optax==0.2.8' 'chex==0.1.92'
+
+pip check
+
 python - <<'PY'
 modules = (
     "jax",
@@ -62,8 +75,6 @@ for module in modules:
     __import__(module)
 PY
 
-export LD_LIBRARY_PATH=/collab/usr/global/tools/rccl/toss_4_x86_64_ib_cray/rocm-6.4.3/install/lib:$LD_LIBRARY_PATH
-
 popd #$PRORED_VENV_DIR
 
 export ACTIVATE_SCRIPT=$PROJECT_WORKSPACE_DIR/$PRORED_VENV.sh
@@ -79,7 +90,8 @@ export PROJECT_WORKSPACE_DIR=\$WORKSPACE_ROOT_DIR/builds
 export PRORED_VENV=prored-\$PRORED_RELEASE-\$SYSTEM_NAME
 export PRORED_VENV_DIR=\$PROJECT_WORKSPACE_DIR/\$PRORED_VENV
 source \$PRORED_VENV_DIR/bin/activate
-export LD_LIBRARY_PATH=/collab/usr/global/tools/rccl/toss_4_x86_64_ib_cray/rocm-7.2.0/install/lib:$LD_LIBRARY_PATH
+export ROCM_PATH=/opt/rocm-7.2.1
+export LD_LIBRARY_PATH=\$ROCM_PATH/lib:\$ROCM_PATH/llvm/lib:/collab/usr/global/tools/rccl/toss_4_x86_64_ib_cray/rocm-7.2.0/install/lib:\$LD_LIBRARY_PATH
 EOF
 chmod +x $ACTIVATE_SCRIPT
 

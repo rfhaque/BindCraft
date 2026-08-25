@@ -223,16 +223,16 @@ else
   get_python_package_spec() {
     case "$1" in
       dm-haiku)
-        echo 'dm-haiku<0.0.14'
+        echo 'dm-haiku'
         ;;
       flax)
-        echo 'flax==0.9.0'
+        echo 'flax==0.11.0'
         ;;
       optax)
-        echo 'optax==0.2.4'
+        echo 'optax==0.2.8'
         ;;
       chex)
-        echo 'chex==0.1.88'
+        echo 'chex==0.1.92'
         ;;
       *)
         echo "$1"

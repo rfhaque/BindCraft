@@ -22,47 +22,6 @@ from .generic_utils import update_failures
 if not hasattr(matplotlib.cm, "get_cmap"):
     matplotlib.cm.get_cmap = matplotlib.colormaps.get_cmap
 
-def disable_af2_bfloat16(af_model):
-    def disable_in_config(config, seen=None):
-        if seen is None:
-            seen = set()
-        if config is None or id(config) in seen:
-            return
-        seen.add(id(config))
-
-        if isinstance(config, dict):
-            if "use_bfloat16" in config:
-                config["use_bfloat16"] = False
-            if "bfloat16" in config:
-                config["bfloat16"] = False
-            for value in config.values():
-                disable_in_config(value, seen)
-        elif isinstance(config, (list, tuple, set)):
-            for value in config:
-                disable_in_config(value, seen)
-        elif hasattr(config, "items"):
-            try:
-                if "use_bfloat16" in config:
-                    config["use_bfloat16"] = False
-                if "bfloat16" in config:
-                    config["bfloat16"] = False
-                values = [value for _, value in config.items()]
-            except Exception:
-                values = []
-            for value in values:
-                disable_in_config(value, seen)
-        elif hasattr(config, "__dict__"):
-            if hasattr(config, "use_bfloat16"):
-                setattr(config, "use_bfloat16", False)
-            if hasattr(config, "bfloat16"):
-                setattr(config, "bfloat16", False)
-            for value in vars(config).values():
-                disable_in_config(value, seen)
-
-    disable_in_config(af_model)
-
-    return af_model
-
 # hallucinate a binder
 def binder_hallucination(design_name, starting_pdb, chain, target_hotspot_residues, length, seed, helicity_value, design_models, advanced_settings, design_paths, failure_csv):
     model_pdb_path = os.path.join(design_paths["Trajectory"], design_name+".pdb")
@@ -74,7 +33,6 @@ def binder_hallucination(design_name, starting_pdb, chain, target_hotspot_residu
     af_model = mk_afdesign_model(protocol="binder", debug=False, data_dir=advanced_settings["af_params_dir"], 
                                 use_multimer=advanced_settings["use_multimer_design"], num_recycles=advanced_settings["num_recycles_design"],
                                 best_metric='loss')
-    disable_af2_bfloat16(af_model)
 
     # sanity check for hotspots
     if target_hotspot_residues == "":
@@ -82,7 +40,6 @@ def binder_hallucination(design_name, starting_pdb, chain, target_hotspot_residu
 
     af_model.prep_inputs(pdb_filename=starting_pdb, chain=chain, binder_len=length, hotspot=target_hotspot_residues, seed=seed, rm_aa=advanced_settings["omit_AAs"],
                         rm_target_seq=advanced_settings["rm_template_seq_design"], rm_target_sc=advanced_settings["rm_template_sc_design"])
-    disable_af2_bfloat16(af_model)
 
     ### Update weights based on specified settings
     af_model.opt["weights"].update({"pae":advanced_settings["weights_pae_intra"],
