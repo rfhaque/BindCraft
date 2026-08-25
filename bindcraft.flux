@@ -2,9 +2,9 @@
 # flux: -N 1
 # flux: -x
 # flux: --amd-gpumode=SPX
-# flux: -t 2h
+# flux: -t 24h
 # flux: -q batch
-# flux: -B my_bank
+# flux: -B prored
 
 set -euo pipefail
 
@@ -52,13 +52,10 @@ command -v flux >/dev/null 2>&1 || {
     exit 1
 }
 
-SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-cd "${SCRIPT_DIR}"
-
 if [ -z "$SETTINGS" ]; then
     echo "Error: The -s or --settings option is required."
     exit 1
 fi
 
 echo "Running the BindCraft pipeline with Flux"
-flux run -N 1 -n "${RANKS}" -g 1 python -u "${SCRIPT_DIR}/bindcraft.py" --settings "${SETTINGS}" --filters "${FILTERS}" --advanced "${ADVANCED}"
+flux run -N 1 -n "${RANKS}" -g 1 python -u "./bindcraft.py" --settings "${SETTINGS}" --filters "${FILTERS}" --advanced "${ADVANCED}"
