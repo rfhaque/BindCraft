@@ -45,7 +45,7 @@ print(f"MPI rank {rank}/{size} is using GPU {selected_gpu}.")
 parser = argparse.ArgumentParser(description='Script to run BindCraft binder design.')
 
 parser.add_argument('--settings', '-s', type=str, required=True,
-                    help='Colon-delimited list of basic settings.json paths (one per rank). Required.')
+                    help='Basic settings.json path, or a colon-delimited list with one path per rank. Required.')
 parser.add_argument('--filters', '-f', type=str, default='./settings_filters/default_filters.json',
                     help='Path to the filters.json file used to filter design. If not provided, default will be used.')
 parser.add_argument('--advanced', '-a', type=str, default='./settings_advanced/default_4stage_multimer.json',
@@ -58,13 +58,13 @@ if any(s == "" for s in settings_list):
     print('Error: --settings contains an empty entry (check for leading/trailing ":").', file=sys.stderr)
     sys.exit(1)
 
+# A single settings file is shared by every rank.  A colon-delimited list
+# retains the one-settings-file-per-rank behavior.
+if len(settings_list) == 1:
+    settings_list *= size
+
 if rank < 0:
     print(f"Error: rank must be >= 0 (got {rank}).", file=sys.stderr)
-    sys.exit(1)
-
-if rank >= len(settings_list):
-    print("Error: rank is out of range for --settings entries.", file=sys.stderr)
-    print(f"       rank={rank} settings_entries={len(settings_list)}", file=sys.stderr)
     sys.exit(1)
 
 if len(settings_list) != size:
